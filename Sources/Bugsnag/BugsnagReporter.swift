@@ -119,7 +119,7 @@ extension BugsnagReporter {
             var headerDict: [String : Any] = request.headers.reduce(into: [:]) { result, value in
                 result[value.0] = value.1
             }
-            strip(keys: configuration.keyFilters, from: &headerDict)
+            strip(keys: configuration.keyFilters, from: &headerDict, caseSensitive: false)
 
             let filteredHeaders: [(String, String)] = headerDict.compactMap { k, v in
                 guard let value = v as? String else { return nil }
@@ -248,7 +248,7 @@ extension BugsnagReporter {
             if var json = try? JSONSerialization.jsonObject(
                 with: Data(body.readableBytesView)
             ) as? [String: Any] {
-                self.strip(keys: keyFilters, from: &json)
+                self.strip(keys: keyFilters, from: &json, caseSensitive: true)
                 let data = try! JSONSerialization.data(withJSONObject: json)
                 return String(decoding: data, as: UTF8.self)
             } else {
@@ -259,13 +259,13 @@ extension BugsnagReporter {
         }
     }
 
-    private func strip(keys: Set<String>, from data: inout [String: Any]) {
+    private func strip(keys: Set<String>, from data: inout [String: Any], caseSensitive: Bool) {
         for key in data.keys {
-            if keys.contains(key) {
+            if keys.contains(where: { caseSensitive ? $0 == key : $0.lowercased() == key.lowercased() }) {
                 data[key] = "<hidden>"
             } else {
                 if var nested = data[key] as? [String: Any] {
-                    self.strip(keys: keys, from: &nested)
+                    self.strip(keys: keys, from: &nested, caseSensitive: caseSensitive)
                     data[key] = nested
                 }
             }
